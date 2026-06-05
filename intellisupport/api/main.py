@@ -42,7 +42,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router, prefix="/api/v1")
+# Spec: endpoints at /query, /evaluate/{id}, /feedback, /health — no /api/v1 prefix
+app.include_router(router)
 
 
 @app.on_event("startup")
@@ -68,5 +69,5 @@ def root():
         "service": "IntelliSupport RAG Platform",
         "version": "1.0.0",
         "docs": "/docs",
-        "health": "/api/v1/health",
+        "health": "/health",
     }

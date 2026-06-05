@@ -10,18 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for layer caching
-COPY intellisupport/requirements.txt /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Set working directory to the intellisupport package
+# Set working directory to /app
 WORKDIR /app
 
-# Copy the entire intellisupport directory as the working content
-COPY intellisupport/ .
+# Copy the entire application code
+COPY . .
 
 # Copy .env for container runtime (docker-compose injects env vars)
-COPY .env.example .env.example
+# Assuming .env.example was copied via the `COPY . .` command above, but we can explicitly do it:
+# COPY .env.example .env.example
 
 # Do not run as root
 RUN adduser --disabled-password --gecos "" appuser && \
@@ -31,6 +32,6 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

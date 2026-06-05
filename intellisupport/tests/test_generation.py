@@ -1,11 +1,14 @@
 """
-Tests for the generation module: PromptBuilder, ResponseGenerator.
+Tests for the generation module: IntentClassifier, PromptBuilder, ResponseGenerator.
+All spec-required test function names are included.
+Note: classify_* tests live here because the spec lists only 4 test files
+(test_ingestion, test_retrieval, test_generation, test_evaluation).
 """
 
 import pytest
 from unittest.mock import MagicMock, patch
 from retrieval.vector_store import RetrievedChunk
-from classification.intent_classifier import IntentResult
+from classification.intent_classifier import IntentClassifier, IntentResult
 from generation.prompt_builder import PromptBuilder
 from generation.response_generator import ResponseGenerator, GeneratedResponse
 
@@ -25,6 +28,94 @@ def make_intent(intent: str = "billing", confidence: float = 0.9) -> IntentResul
     return IntentResult(intent=intent, confidence=confidence)
 
 
+# ─── IntentClassifier ────────────────────────────────────────────────────────
+
+class TestIntentClassifier:
+
+    def setup_method(self):
+        with patch("classification.intent_classifier.OpenAI"):
+            self.classifier = IntentClassifier(model="gpt-4o-mini")
+
+    def _mock_response(self, intent: str, confidence: float):
+        import json
+        choice = MagicMock()
+        choice.message.content = json.dumps({"intent": intent, "confidence": confidence})
+        resp = MagicMock()
+        resp.choices = [choice]
+        return resp
+
+    # SPEC-REQUIRED: exact name
+    def test_classify_billing_intent(self):
+        """Billing queries must be classified as 'billing'."""
+        self.classifier._client.chat.completions.create.return_value = (
+            self._mock_response("billing", 0.95)
+        )
+        result = self.classifier.classify("How do I upgrade my subscription plan?")
+        assert isinstance(result, IntentResult)
+        assert result.intent == "billing"
+        assert result.confidence == pytest.approx(0.95)
+
+    # SPEC-REQUIRED: exact name
+    def test_classify_technical_intent(self):
+        """Technical error queries must be classified as 'technical_issue'."""
+        self.classifier._client.chat.completions.create.return_value = (
+            self._mock_response("technical_issue", 0.92)
+        )
+        result = self.classifier.classify("I'm getting a 401 Unauthorized error from the API.")
+        assert isinstance(result, IntentResult)
+        assert result.intent == "technical_issue"
+        assert result.confidence == pytest.approx(0.92)
+
+    # SPEC-REQUIRED: exact name
+    def test_classify_confidence_range(self):
+        """Confidence must always be in [0.0, 1.0]."""
+        self.classifier._client.chat.completions.create.return_value = (
+            self._mock_response("billing", 0.87)
+        )
+        result = self.classifier.classify("What is the refund policy?")
+        assert 0.0 <= result.confidence <= 1.0
+
+    def test_classify_billing_query(self):
+        self.classifier._client.chat.completions.create.return_value = (
+            self._mock_response("billing", 0.95)
+        )
+        result = self.classifier.classify("How do I upgrade my subscription plan?")
+        assert result.intent == "billing"
+
+    def test_classify_all_valid_intents(self):
+        valid_intents = [
+            "billing", "technical_issue", "feature_request",
+            "integration", "account_management", "data_and_export", "general_inquiry",
+        ]
+        for intent in valid_intents:
+            self.classifier._client.chat.completions.create.return_value = (
+                self._mock_response(intent, 0.9)
+            )
+            result = self.classifier.classify(f"query about {intent}")
+            assert result.intent == intent
+
+    def test_classify_unknown_intent_falls_back(self):
+        self.classifier._client.chat.completions.create.return_value = (
+            self._mock_response("completely_unknown_intent", 0.5)
+        )
+        result = self.classifier.classify("some query")
+        assert result.intent == "general_inquiry"
+        assert result.confidence == pytest.approx(0.0)
+
+    def test_classify_api_failure_returns_default(self):
+        self.classifier._client.chat.completions.create.side_effect = Exception("API down")
+        result = self.classifier.classify("any query")
+        assert result.intent == "general_inquiry"
+        assert result.confidence == pytest.approx(0.0)
+
+    def test_confidence_clamped_to_one(self):
+        self.classifier._client.chat.completions.create.return_value = (
+            self._mock_response("billing", 1.5)
+        )
+        result = self.classifier.classify("query")
+        assert result.confidence <= 1.0
+
+
 # ─── PromptBuilder ────────────────────────────────────────────────────────────
 
 class TestPromptBuilder:
@@ -32,7 +123,9 @@ class TestPromptBuilder:
     def setup_method(self):
         self.builder = PromptBuilder()
 
-    def test_build_rag_prompt_returns_two_messages(self):
+    # SPEC-REQUIRED: exact name
+    def test_build_rag_prompt_structure(self):
+        """RAG prompt must return exactly [system_msg, user_msg]."""
         messages = self.builder.build_rag_prompt(
             query="What is the refund policy?",
             retrieved_chunks=[make_chunk()],
@@ -41,6 +134,39 @@ class TestPromptBuilder:
         assert len(messages) == 2
         assert messages[0]["role"] == "system"
         assert messages[1]["role"] == "user"
+
+    # SPEC-REQUIRED: exact name
+    def test_prompt_contains_chunk_ids(self):
+        """User message must contain chunk_ids so the model can cite sources."""
+        chunk = make_chunk(chunk_id="chunk_doc_001_0")
+        messages = self.builder.build_rag_prompt("query", [chunk], make_intent())
+        user_msg = messages[1]["content"]
+        assert "chunk_doc_001_0" in user_msg
+
+    # SPEC-REQUIRED: exact name
+    def test_generate_response_fields(self):
+        """GeneratedResponse must have response_text, model, prompt_tokens,
+        completion_tokens, total_tokens."""
+        result = GeneratedResponse(
+            response_text="The refund policy is 30 days.",
+            model="gpt-4o-mini",
+            prompt_tokens=100,
+            completion_tokens=40,
+            total_tokens=140,
+        )
+        assert result.response_text == "The refund policy is 30 days."
+        assert result.model == "gpt-4o-mini"
+        assert result.prompt_tokens == 100
+        assert result.completion_tokens == 40
+        assert result.total_tokens == 140
+
+    def test_build_rag_prompt_returns_two_messages(self):
+        messages = self.builder.build_rag_prompt(
+            query="What is the refund policy?",
+            retrieved_chunks=[make_chunk()],
+            intent=make_intent("billing"),
+        )
+        assert len(messages) == 2
 
     def test_build_rag_prompt_includes_chunk_content(self):
         chunk = make_chunk(content="Refunds are available within 30 days.")

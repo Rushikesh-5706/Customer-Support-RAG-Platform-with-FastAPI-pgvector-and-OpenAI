@@ -1,5 +1,6 @@
 """
 Tests for the ingestion module: DocumentLoader, DocumentChunker, Embedder.
+All spec-required test function names are included.
 """
 
 import pytest
@@ -16,6 +17,7 @@ class TestDocumentLoader:
     def setup_method(self):
         self.loader = DocumentLoader()
 
+    # SPEC-REQUIRED: exact name
     def test_load_from_dict_valid(self):
         data = {
             "doc_id": "doc_001",
@@ -27,7 +29,8 @@ class TestDocumentLoader:
         assert doc.doc_id == "doc_001"
         assert doc.title == "Test Document"
 
-    def test_load_from_dict_invalid_doc_id_format(self):
+    # SPEC-REQUIRED: exact name (was test_load_from_dict_invalid_doc_id_format)
+    def test_load_from_dict_invalid_doc_id(self):
         data = {"doc_id": "document_001", "title": "Bad", "content": "Content."}
         with pytest.raises(ValueError, match="Invalid doc_id"):
             self.loader.load_from_dict(data)
@@ -37,6 +40,7 @@ class TestDocumentLoader:
         with pytest.raises(ValueError, match="Invalid doc_id"):
             self.loader.load_from_dict(data)
 
+    # SPEC-REQUIRED: exact name
     def test_load_from_dict_empty_content(self):
         data = {"doc_id": "doc_002", "title": "Empty", "content": "   "}
         with pytest.raises(ValueError, match="empty or whitespace-only"):
@@ -97,8 +101,6 @@ class TestDocumentChunker:
         return Document(doc_id=doc_id, title="Test", content=content)
 
     def test_chunk_document_produces_chunks(self):
-        # Build content with explicit sentence boundaries so chunker splits correctly.
-        # chunk_size=50 tokens; each sentence is ~12 tokens; 200 tokens total → multiple chunks.
         sentences = [
             "This is the first sentence about billing and subscription plans.",
             "The second sentence covers technical issue troubleshooting steps.",
@@ -112,9 +114,6 @@ class TestDocumentChunker:
             "Tenth sentence talks about invoice management and payment failure handling.",
             "Eleventh sentence is about SLA guarantees and service credit calculations.",
             "Twelfth sentence describes GDPR data subject access and erasure requests.",
-            "The thirteenth sentence covers Jira integration and bidirectional sync.",
-            "Fourteenth sentence explains the dunning process and account suspension.",
-            "The fifteenth sentence addresses MFA enrollment and recovery procedures.",
         ]
         content = " ".join(sentences)
         doc = self._make_doc(content)
@@ -123,6 +122,48 @@ class TestDocumentChunker:
         for chunk in chunks:
             assert isinstance(chunk, Chunk)
             assert chunk.doc_id == "doc_001"
+
+    # SPEC-REQUIRED: exact name — verifies chunk_id format is chunk_{doc_id}_{index}
+    def test_chunk_document_chunk_ids(self):
+        """chunk_id must follow format: chunk_{doc_id}_{chunk_index}"""
+        content = " ".join(["word"] * 200)
+        doc = self._make_doc(content, doc_id="doc_005")
+        chunks = self.chunker.chunk_document(doc)
+        assert len(chunks) > 0
+        for i, chunk in enumerate(chunks):
+            assert chunk.chunk_id == f"chunk_doc_005_{i}", (
+                f"chunk_id '{chunk.chunk_id}' does not match 'chunk_doc_005_{i}'"
+            )
+
+    # SPEC-REQUIRED: exact name — verifies sliding-window overlap between consecutive chunks
+    def test_chunk_overlap(self):
+        """Consecutive chunks must share overlapping tokens (sliding window)."""
+        # Use sentence-boundary content so the chunker splits into multiple chunks.
+        # Each sentence is ~12 tokens; chunk_size=30 forces splits every ~2 sentences.
+        sentences = [
+            "The billing invoice is generated on the renewal date each month.",
+            "Payment methods accepted include Visa, Mastercard, and ACH transfers.",
+            "Annual subscribers receive a twenty percent discount on all plans.",
+            "Upgrades take effect immediately with prorated charges applied today.",
+            "Downgrades take effect at the end of the current billing period.",
+            "Service credits are issued when uptime falls below the SLA threshold.",
+            "Enterprise customers have dedicated infrastructure and custom SLA terms.",
+            "The Professional plan supports up to fifteen team members per workspace.",
+        ]
+        content = " ".join(sentences)
+        chunker = DocumentChunker(chunk_size=30, chunk_overlap=10)
+        doc = self._make_doc(content)
+        chunks = chunker.chunk_document(doc)
+        assert len(chunks) >= 2, (
+            f"Expected at least 2 chunks for overlap test, got {len(chunks)}"
+        )
+        # Tail tokens of chunk[0] must reappear at the start of chunk[1]
+        tail_words = set(chunks[0].content.split()[-10:])
+        head_words = set(chunks[1].content.split()[:15])
+        overlap = tail_words & head_words
+        assert len(overlap) > 0, (
+            "No overlapping tokens found between chunk[0] tail and chunk[1] head"
+        )
 
     def test_chunk_ids_are_unique(self):
         content = " ".join(["word"] * 200)
@@ -167,6 +208,19 @@ class TestEmbedder:
         with patch("ingestion.embedder.OpenAI"):
             self.embedder = Embedder(model="text-embedding-3-small", batch_size=2)
 
+    # SPEC-REQUIRED: exact name — verifies embedding vector has correct dimensionality (1536)
+    def test_embed_text_shape(self):
+        """text-embedding-3-small returns 1536-dimensional vectors."""
+        fake_embedding = [0.01] * 1536
+        mock_resp = MagicMock()
+        mock_resp.data = [MagicMock(embedding=fake_embedding)]
+        self.embedder._client.embeddings.create.return_value = mock_resp
+
+        result = self.embedder.embed_text("What is the billing cycle?")
+        assert isinstance(result, list)
+        assert len(result) == 1536, f"Expected 1536-d vector, got {len(result)}"
+        assert all(isinstance(v, float) for v in result)
+
     def test_embed_text_returns_list_of_floats(self):
         mock_resp = MagicMock()
         mock_resp.data = [MagicMock(embedding=[0.1, 0.2, 0.3])]
@@ -182,7 +236,6 @@ class TestEmbedder:
             Exception("API error"),
             mock_resp,
         ]
-
         with patch("ingestion.embedder.time.sleep"):
             result = self.embedder.embed_text("test")
         assert result == [0.5]

@@ -57,8 +57,27 @@ BENCHMARK_TEST_CASES = [
         "expected_doc_ids": ["doc_008"],
         "expected_intent": "account_management",
     },
+    {
+        "query": "How do I setup SSO via Okta?",
+        "expected_doc_ids": ["doc_012", "doc_002"],
+        "expected_intent": "account_management",
+    },
+    {
+        "query": "Can I keep my data for 3 years?",
+        "expected_doc_ids": ["doc_011", "doc_007"],
+        "expected_intent": "data_and_export",
+    },
+    {
+        "query": "Is there a template for Marketing?",
+        "expected_doc_ids": ["doc_005"],
+        "expected_intent": "general_inquiry",
+    },
+    {
+        "query": "What are the rate limits for the API?",
+        "expected_doc_ids": ["doc_009", "doc_010"],
+        "expected_intent": "technical_issue",
+    },
 ]
-
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -431,7 +450,7 @@ class TestPipelineEvaluator:
 
     def test_benchmark_test_cases_structure(self):
         """Verify BENCHMARK_TEST_CASES has correct structure."""
-        assert len(BENCHMARK_TEST_CASES) == 8
+        assert len(BENCHMARK_TEST_CASES) == 12
         for case in BENCHMARK_TEST_CASES:
             assert "query" in case
             assert "expected_doc_ids" in case

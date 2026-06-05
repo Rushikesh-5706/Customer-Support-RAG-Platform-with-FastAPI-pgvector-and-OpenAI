@@ -404,18 +404,4 @@ SEED_DOCUMENTS = [
             "handles this automatically. Check pg_isready output and PostgreSQL logs for details."
         ),
     },
-    {
-        "doc_id": "doc_011",
-        "title": "Custom Data Retention Policies",
-        "source_url": "https://help.nexora.io/data/retention",
-        "metadata": {"category": "data_and_export", "version": "2024-Q4"},
-        "content": "Enterprise customers can configure custom data retention policies..."
-    },
-    {
-        "doc_id": "doc_012",
-        "title": "SSO via SAML 2.0 Configuration",
-        "source_url": "https://help.nexora.io/security/sso",
-        "metadata": {"category": "account_management", "version": "2024-Q4"},
-        "content": "Single Sign-On (SSO) allows your team to authenticate using an Identity Provider (IdP)..."
-    }
 ]

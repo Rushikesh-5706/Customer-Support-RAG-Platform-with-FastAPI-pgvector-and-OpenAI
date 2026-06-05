@@ -24,6 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: rushi5706/intellisupport:latest
     container_name: intellisupport_api
     restart: unless-stopped
     env_file:

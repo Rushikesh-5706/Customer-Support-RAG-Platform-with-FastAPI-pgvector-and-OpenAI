@@ -31,9 +31,10 @@ logger = logging.getLogger(__name__)
 
 
 def run_migration(conn) -> None:
-    logger.info("Running database migration...")
-    with open("database/migrations/001_initial.sql", "r") as f:
-        sql = f.read()
+    from pathlib import Path
+    migration_path = Path(__file__).parent / "database" / "migrations" / "001_initial.sql"
+    logger.info("Running database migration from %s...", migration_path)
+    sql = migration_path.read_text()
     with conn.cursor() as cur:
         cur.execute(sql)
     conn.commit()

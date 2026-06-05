@@ -19,11 +19,6 @@ class FeedbackStore:
     def store_feedback(
         self, response_id: str, rating: int, comment: str = None
     ) -> str:
-        """
-        Validate rating, generate feedback_id, insert into DB.
-        Returns feedback_id as f"fb_{uuid4().hex[:8]}".
-        Raises ValueError if rating not in [1, 5].
-        """
         if not (1 <= rating <= 5):
             raise ValueError(f"Rating must be between 1 and 5. Got: {rating}")
 
@@ -41,9 +36,6 @@ class FeedbackStore:
         return feedback_id
 
     def get_feedback_summary(self, response_id: str) -> FeedbackSummary:
-        """
-        Returns FeedbackSummary with avg_rating and total_count for a response.
-        """
         sql = """
             SELECT AVG(rating)::FLOAT, COUNT(*)
             FROM intellisupport.feedback
@@ -64,11 +56,6 @@ class FeedbackStore:
     def get_low_rated_responses(
         self, threshold: float = 2.5, limit: int = 10
     ) -> list[dict]:
-        """
-        Returns responses with avg feedback rating below threshold.
-        Keys: response_id, query_id, avg_rating, feedback_count.
-        Ordered by avg_rating ascending.
-        """
         sql = """
             SELECT
                 f.response_id,

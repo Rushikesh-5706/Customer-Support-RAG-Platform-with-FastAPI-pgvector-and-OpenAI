@@ -11,3 +11,7 @@ htmlcov/
 coverage.xml
 *.log
 .DS_Store
+
+# Never commit real credentials
+.env
+intellisupport/.env

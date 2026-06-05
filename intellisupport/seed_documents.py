@@ -1,0 +1,532 @@
+"""
+Seed documents for the IntelliSupport RAG platform.
+
+Each document represents a realistic, multi-paragraph knowledge-base article
+for a fictional B2B SaaS product called Nexora. All documents are minimum 300
+words and cover the full range of support intent categories used by the
+intent classifier.
+"""
+
+SEED_DOCUMENTS = [
+    {
+        "doc_id": "doc_001",
+        "title": "Nexora Subscription Plans and Billing Cycles",
+        "source_url": "https://help.nexora.io/billing/subscription-plans",
+        "metadata": {"category": "billing", "version": "2024-Q4"},
+        "content": (
+            "Nexora offers four subscription tiers designed to match organizations of every size: "
+            "Starter, Professional, Business, and Enterprise. Each plan is billed on a monthly "
+            "or annual basis, with annual subscribers receiving a 20 percent discount compared "
+            "to the equivalent monthly rate.\n\n"
+            "The Starter plan costs USD 29 per month (or USD 278 annually) and supports up to "
+            "3 team members and 5,000 API calls per month. It includes access to the core "
+            "knowledge-base search, basic analytics, and email support with a 48-hour response "
+            "time target. The Starter plan is intended for early-stage teams evaluating the "
+            "platform before committing to a larger capacity.\n\n"
+            "The Professional plan is priced at USD 99 per month (or USD 950 annually) and "
+            "raises the team member limit to 15 and the monthly API call quota to 50,000. "
+            "Professional subscribers gain access to hybrid retrieval (BM25 plus vector search), "
+            "intent classification, automated evaluation scoring, and priority email support "
+            "with a 24-hour SLA.\n\n"
+            "The Business plan at USD 299 per month (or USD 2,870 annually) supports up to 50 "
+            "team members and 250,000 API calls per month. It adds dedicated Slack support, "
+            "custom data retention policies up to 3 years, SSO via SAML 2.0, advanced audit "
+            "logs, and a 99.9 percent uptime SLA backed by service credits.\n\n"
+            "The Enterprise plan has custom pricing negotiated directly with the Nexora sales "
+            "team and includes unlimited team members, unlimited API calls, dedicated "
+            "infrastructure, a named customer success manager, custom SLA agreements, and "
+            "on-premise deployment options. Organizations processing more than 1 million "
+            "support interactions per month are strongly encouraged to contact the sales team "
+            "for a tailored quote.\n\n"
+            "Billing occurs on the anniversary date of the subscription start. Invoices are "
+            "issued in PDF format and sent to the billing email address on file. Payment is "
+            "accepted via major credit cards (Visa, Mastercard, American Express), ACH bank "
+            "transfer for US accounts, and SEPA direct debit for EU accounts. Wire transfers "
+            "are accepted for Enterprise contracts only. All prices are exclusive of applicable "
+            "taxes; VAT or GST may apply depending on the customer's billing country.\n\n"
+            "Plan upgrades take effect immediately, and the prorated difference is charged to "
+            "the payment method on file. Plan downgrades take effect at the end of the current "
+            "billing period. Cancellations submitted before the renewal date prevent the next "
+            "charge; access continues until the end of the paid period. Refunds are not issued "
+            "for partial months on monthly plans; annual plan refunds are evaluated on a case-"
+            "by-case basis by the billing team at billing@nexora.io."
+        ),
+    },
+    {
+        "doc_id": "doc_002",
+        "title": "Troubleshooting API Authentication Errors",
+        "source_url": "https://help.nexora.io/technical/api-authentication",
+        "metadata": {"category": "technical_issue", "version": "2024-Q4"},
+        "content": (
+            "Authentication errors are the most common source of API integration issues "
+            "reported to Nexora support. This guide covers the full set of HTTP status codes "
+            "returned by the Nexora API for authentication-related failures, explains their "
+            "root causes, and provides step-by-step remediation instructions.\n\n"
+            "HTTP 401 Unauthorized is returned when the API key is missing, malformed, or "
+            "has been revoked. The most frequent cause is a key being copied with a trailing "
+            "space or newline character from a configuration file. Verify that your key begins "
+            "with the prefix 'nxr_' followed by exactly 40 alphanumeric characters. Keys are "
+            "case-sensitive. To test your key, run: curl -H 'Authorization: Bearer YOUR_KEY' "
+            "https://api.nexora.io/v1/health. A successful response returns HTTP 200 with a "
+            "JSON body containing 'status: ok'.\n\n"
+            "HTTP 403 Forbidden indicates that the API key is valid but lacks permission for "
+            "the requested operation. Nexora API keys are scoped at the workspace level. If "
+            "you are calling the /admin or /billing endpoints, ensure the key was generated "
+            "under an account with admin-level permissions. Read-only keys cannot create, "
+            "update, or delete resources. Navigate to Settings > API Keys in the Nexora "
+            "dashboard to review a key's permission scope.\n\n"
+            "HTTP 429 Too Many Requests indicates rate-limit exhaustion. The Nexora API "
+            "enforces per-minute and per-day rate limits that vary by plan. The response "
+            "headers include X-RateLimit-Limit (maximum requests allowed), X-RateLimit-"
+            "Remaining (requests left in the current window), and X-RateLimit-Reset (Unix "
+            "timestamp when the window resets). Implement exponential backoff with jitter "
+            "when you receive a 429; retrying immediately will not succeed and may result "
+            "in a temporary IP block after five consecutive 429 responses.\n\n"
+            "Key rotation is recommended every 90 days as a security best practice. When "
+            "rotating, generate the new key first, update all dependent services, verify "
+            "they authenticate successfully, then revoke the old key. Both keys remain active "
+            "during a 24-hour grace period to allow a zero-downtime transition.\n\n"
+            "If you continue to receive authentication errors after verifying the key format "
+            "and permissions, check that your system clock is synchronized. The Nexora API "
+            "uses HMAC-based request signing for certain endpoints that require the request "
+            "timestamp to be within 300 seconds of server time. Use NTP to ensure clock drift "
+            "does not exceed this threshold. Contact support@nexora.io if the issue persists "
+            "after completing all steps in this guide."
+        ),
+    },
+    {
+        "doc_id": "doc_003",
+        "title": "How to Invite and Manage Team Members",
+        "source_url": "https://help.nexora.io/account/team-management",
+        "metadata": {"category": "account_management", "version": "2024-Q4"},
+        "content": (
+            "Nexora's team management system lets workspace administrators add collaborators, "
+            "assign granular roles, and control access to sensitive features without sharing "
+            "credentials. This article explains invitation flows, role definitions, and "
+            "best practices for maintaining a secure team configuration.\n\n"
+            "To invite a team member, navigate to Settings > Team > Invite Member. Enter the "
+            "invitee's work email address and select one of four available roles: Viewer, "
+            "Editor, Manager, or Admin. An invitation email is sent immediately; the link "
+            "expires after 72 hours. If the invitee does not receive the email, ask them to "
+            "check spam folders and verify their IT department has not blocked mail from "
+            "nexora.io. You can resend or revoke invitations from the Pending Invitations tab.\n\n"
+            "Role definitions are as follows. The Viewer role grants read-only access to the "
+            "knowledge base, response history, and analytics dashboards. Viewers cannot ingest "
+            "documents, submit queries through the API, or modify workspace settings. The Editor "
+            "role allows document ingestion and querying but restricts access to billing and "
+            "team management. The Manager role adds the ability to manage team members at or "
+            "below the Manager level and export data. The Admin role has full workspace control "
+            "including billing management, SSO configuration, API key generation, and the "
+            "ability to promote or demote other Admins.\n\n"
+            "Each workspace must maintain at least one Admin at all times. If the sole Admin "
+            "needs to leave the organization, they must promote another member to Admin before "
+            "their account can be removed. Attempting to remove the last Admin account surfaces "
+            "an error: 'Cannot remove the last workspace administrator.'\n\n"
+            "For organizations using SAML 2.0 Single Sign-On, team member provisioning can be "
+            "automated via SCIM 2.0. With SCIM enabled, user accounts are created and "
+            "deactivated automatically based on your identity provider's (IdP) push events. "
+            "Supported IdPs include Okta, Azure Active Directory, and Google Workspace. "
+            "SCIM configuration is available under Settings > Security > SCIM Provisioning and "
+            "requires the Enterprise plan.\n\n"
+            "Two-factor authentication (2FA) can be enforced at the workspace level by an "
+            "Admin. Once enabled, all team members must enroll a TOTP authenticator app "
+            "(such as Google Authenticator or Authy) before their next login. Members who "
+            "have not enrolled are locked out after the grace period expires. Admins can "
+            "generate a one-time bypass code for a specific member from the Team management "
+            "panel in emergency situations."
+        ),
+    },
+    {
+        "doc_id": "doc_004",
+        "title": "Slack Integration Setup and Permissions",
+        "source_url": "https://help.nexora.io/integrations/slack",
+        "metadata": {"category": "integration", "version": "2024-Q4"},
+        "content": (
+            "The Nexora Slack integration allows support teams to receive real-time "
+            "notifications, query the knowledge base directly from Slack channels, and "
+            "escalate conversations to human agents without leaving the Slack interface. "
+            "This guide walks through the installation, required OAuth scopes, and "
+            "channel configuration.\n\n"
+            "To install the integration, navigate to Settings > Integrations > Slack and "
+            "click 'Add to Slack'. You will be redirected to Slack's OAuth consent screen. "
+            "The integration requests the following OAuth scopes: channels:read (to list "
+            "available channels), chat:write (to post messages), commands (to register the "
+            "/nexora slash command), and users:read.email (to map Slack users to Nexora "
+            "accounts for audit purposes). You must be a Slack Workspace Admin to authorize "
+            "the installation.\n\n"
+            "After installation, configure the notification channel by selecting a public or "
+            "private Slack channel where Nexora alerts will be posted. The bot user 'Nexora "
+            "Assistant' must be explicitly invited to private channels before it can post. "
+            "Type /invite @NexoraAssistant in the target channel to grant access. Without "
+            "this step, notification delivery to private channels will silently fail.\n\n"
+            "The /nexora slash command supports the following subcommands: /nexora ask "
+            "[question] performs a hybrid retrieval query and returns the top answer with "
+            "source citations; /nexora status shows the current Nexora service health; "
+            "/nexora escalate [description] creates a support ticket and notifies the on-"
+            "call manager. All /nexora commands are logged to the Nexora audit trail.\n\n"
+            "Notification triggers are configurable from the Nexora dashboard under "
+            "Integrations > Slack > Notification Rules. You can configure alerts for: new "
+            "low-confidence responses (confidence below a configurable threshold), responses "
+            "with a faithfulness score below 0.7, feedback ratings of 1 or 2 stars, and "
+            "daily or weekly digest summaries of usage metrics.\n\n"
+            "Enterprise customers with data residency requirements should note that Slack "
+            "message content is transmitted to Slack's servers and is subject to Slack's "
+            "data processing terms. If your organization requires that support content remain "
+            "within a specific geographic region, consult your legal and compliance team "
+            "before enabling the Slack integration. Nexora's EU-hosted infrastructure option "
+            "is available for Enterprise customers but does not prevent data from being "
+            "transmitted to Slack's US-based infrastructure."
+        ),
+    },
+    {
+        "doc_id": "doc_005",
+        "title": "Exporting Data and GDPR Data Subject Requests",
+        "source_url": "https://help.nexora.io/data/exports-and-gdpr",
+        "metadata": {"category": "data_and_export", "version": "2024-Q4"},
+        "content": (
+            "Nexora provides structured data export capabilities to support business "
+            "continuity, compliance requirements, and GDPR data subject requests. This "
+            "article describes the available export formats, how to initiate exports, "
+            "retention schedules, and the process for handling access and erasure requests "
+            "under GDPR, CCPA, and similar privacy regulations.\n\n"
+            "Workspace data can be exported from the Settings > Data Management > Export "
+            "panel. Three export types are available. A full workspace export packages all "
+            "documents, chunks, query history, response history, and feedback records into "
+            "a ZIP archive containing one JSON Lines file per table. A selective export "
+            "allows you to choose a date range and one or more data types. A single-document "
+            "export downloads a specific document and all associated chunks in JSON format. "
+            "All exports are generated asynchronously; you will receive an email with a "
+            "signed download link valid for 24 hours once the export is ready.\n\n"
+            "Supported export formats are JSON Lines (default, suitable for programmatic "
+            "processing), CSV (for spreadsheet analysis), and Parquet (for data warehouse "
+            "ingestion). Format selection is available in the Export configuration panel. "
+            "Note that embedding vectors are excluded from CSV exports due to size "
+            "constraints; JSON Lines and Parquet exports include full vector data.\n\n"
+            "Data retention settings determine how long Nexora stores query and response "
+            "records. The default retention period is 90 days for Starter and Professional "
+            "plans, 1 year for Business, and up to 7 years for Enterprise (configurable). "
+            "Retention changes apply prospectively; records already older than the new "
+            "retention period are purged within 30 days of the configuration change.\n\n"
+            "For GDPR Article 15 (access) and Article 17 (erasure) requests, workspace "
+            "Admins should submit the request form at nexora.io/privacy/dsr. Nexora's Data "
+            "Protection Officer team will acknowledge the request within 72 hours and fulfill "
+            "it within 30 calendar days, as required by GDPR. For erasure requests, Nexora "
+            "will delete all personally identifiable information (PII) associated with the "
+            "data subject from active databases and will mark the records for purge from "
+            "backup media on the next scheduled backup expiration cycle, typically within "
+            "90 days. A written confirmation of erasure completion will be provided.\n\n"
+            "If you need to delete your entire workspace and all associated data, submit a "
+            "workspace deletion request via Settings > Danger Zone > Delete Workspace. This "
+            "action is irreversible. All data is permanently deleted within 30 days and "
+            "backups containing the workspace data expire within 90 days."
+        ),
+    },
+    {
+        "doc_id": "doc_006",
+        "title": "Understanding Hybrid Retrieval: Vector Search and BM25",
+        "source_url": "https://help.nexora.io/features/hybrid-retrieval",
+        "metadata": {"category": "feature_request", "version": "2024-Q4"},
+        "content": (
+            "Nexora's retrieval engine combines two complementary search methods — dense "
+            "vector search using OpenAI embeddings and sparse keyword search using BM25 — "
+            "to maximize retrieval accuracy across diverse query types. This article explains "
+            "how each method works, how scores are fused, and how to tune the alpha parameter "
+            "to optimize performance for your specific document corpus.\n\n"
+            "Dense vector search converts both the customer query and each indexed document "
+            "chunk into high-dimensional embedding vectors using OpenAI's text-embedding-3-"
+            "small model, which produces 1536-dimensional vectors. At query time, the system "
+            "computes cosine similarity between the query vector and all chunk vectors stored "
+            "in PostgreSQL using the pgvector extension. The IVFFlat index with 10 inverted "
+            "lists accelerates this search, enabling sub-100ms retrieval even over corpora "
+            "with hundreds of thousands of chunks. Vector search excels at semantic matching: "
+            "it can retrieve relevant chunks even when the query uses different terminology "
+            "than the document, such as matching 'cannot log in' to a document that discusses "
+            "'authentication failures'.\n\n"
+            "Sparse keyword search using BM25 (Best Matching 25) treats documents as bags of "
+            "words and scores chunks based on term frequency–inverse document frequency "
+            "statistics. BM25 excels at exact keyword matching, making it particularly "
+            "effective for technical queries containing product codes, error messages, "
+            "function names, or version strings that would not necessarily preserve semantic "
+            "meaning when converted to embeddings. Nexora's BM25 index is built in-memory "
+            "at application startup from the current chunk corpus and must be rebuilt "
+            "whenever new documents are ingested via the /ingest endpoint.\n\n"
+            "Score fusion is performed using a weighted linear combination controlled by "
+            "the alpha parameter (default 0.7). For each candidate chunk, the final hybrid "
+            "score is computed as: final_score = alpha × vector_score + (1 − alpha) × "
+            "bm25_score. Both scores are independently normalized to [0, 1] before fusion. "
+            "Setting alpha closer to 1.0 gives more weight to semantic similarity; setting "
+            "it closer to 0.0 gives more weight to keyword matching. For knowledge bases "
+            "containing technical documentation with precise terminology, an alpha between "
+            "0.5 and 0.6 often yields better precision. For conversational or ambiguous "
+            "queries, an alpha of 0.7 or higher is recommended.\n\n"
+            "After score fusion, Nexora applies a Jaccard coefficient reranking step that "
+            "boosts chunks with high term overlap with the query. The rerank score is: "
+            "0.8 × hybrid_score + 0.2 × jaccard_similarity. This final reranking step "
+            "improves precision at rank 1 for exact-match queries without significantly "
+            "degrading recall for semantic queries. The alpha parameter and top_k can be "
+            "configured per-request via the query API or globally via the workspace settings."
+        ),
+    },
+    {
+        "doc_id": "doc_007",
+        "title": "Password Reset and Multi-Factor Authentication",
+        "source_url": "https://help.nexora.io/account/password-and-mfa",
+        "metadata": {"category": "account_management", "version": "2024-Q4"},
+        "content": (
+            "This article covers the procedures for resetting a forgotten password, "
+            "enrolling in multi-factor authentication (MFA), and recovering access to an "
+            "account when MFA devices are unavailable. All Nexora accounts support "
+            "TOTP-based MFA and hardware security keys.\n\n"
+            "To reset your password, click 'Forgot Password' on the login page at "
+            "app.nexora.io. Enter the email address associated with your account. A "
+            "password reset email is sent within 60 seconds; check your spam folder if "
+            "it does not arrive. The reset link is valid for 30 minutes. After clicking "
+            "the link, choose a new password that meets the following requirements: minimum "
+            "12 characters, at least one uppercase letter, one lowercase letter, one digit, "
+            "and one special character from the set !@#$%^&*(). Passwords are hashed using "
+            "bcrypt with a cost factor of 12 before storage; Nexora never stores passwords "
+            "in plaintext.\n\n"
+            "If your workspace enforces SSO via SAML 2.0, the 'Forgot Password' flow is "
+            "disabled. Password resets must be performed through your identity provider (e.g., "
+            "Okta, Azure AD, or Google Workspace). Contact your IT administrator if you "
+            "cannot reset your password through the IdP.\n\n"
+            "To enroll MFA, log into your account and navigate to Settings > Security > "
+            "Multi-Factor Authentication. Click 'Add authenticator app' and scan the QR "
+            "code with a TOTP-compatible app (Google Authenticator, Authy, Microsoft "
+            "Authenticator, or 1Password). Enter the 6-digit code displayed in your app "
+            "to confirm enrollment. It is strongly recommended to save the 16-character "
+            "backup codes shown during enrollment; store them in a password manager or "
+            "print and secure them physically. Each backup code is single-use.\n\n"
+            "FIDO2-compliant hardware security keys (YubiKey, Titan Key) are supported as "
+            "a second factor. To register a key, navigate to Settings > Security > Security "
+            "Keys and follow the on-screen prompts. Up to 5 hardware keys can be registered "
+            "per account.\n\n"
+            "If you are locked out due to a lost MFA device and have no backup codes, "
+            "contact support@nexora.io from the email address on your account with the "
+            "subject line 'MFA Account Recovery'. The support team will verify your identity "
+            "using a combination of billing information, last login IP, and an identity "
+            "verification step before granting a one-time bypass. For workspace Admin "
+            "accounts, identity verification may require a video call with the support team "
+            "due to the elevated access level."
+        ),
+    },
+    {
+        "doc_id": "doc_008",
+        "title": "GitHub Integration: Automated Issue Triage from Support Tickets",
+        "source_url": "https://help.nexora.io/integrations/github",
+        "metadata": {"category": "integration", "version": "2024-Q4"},
+        "content": (
+            "The Nexora GitHub integration enables automated creation of GitHub Issues "
+            "directly from support responses that have been flagged as potential bugs or "
+            "feature requests. This bidirectional integration also syncs GitHub issue status "
+            "back to Nexora so support agents can inform customers when issues are resolved.\n\n"
+            "To configure the integration, navigate to Settings > Integrations > GitHub and "
+            "click 'Connect to GitHub'. You will be redirected to GitHub's OAuth authorization "
+            "page. Nexora requests the following permissions: repo (to create and update "
+            "issues in selected repositories), read:org (to enumerate repositories accessible "
+            "to the authorized user or organization), and webhooks (to receive push events "
+            "when issue status changes). Authorize the app using a GitHub account with at "
+            "least Triage permission on the target repositories.\n\n"
+            "After authorization, select one or more target repositories from the repository "
+            "list. Configure label mappings: Nexora intent categories are mapped to GitHub "
+            "labels. For example, the 'technical_issue' intent can be mapped to the 'bug' "
+            "label, and 'feature_request' can be mapped to 'enhancement'. Custom label "
+            "mappings can be added for any intent category.\n\n"
+            "To create a GitHub issue from a support response, open the response in the "
+            "Nexora dashboard, click the 'Escalate to GitHub' button, select the target "
+            "repository, add or edit the auto-generated issue title and body, then click "
+            "'Create Issue'. The issue body is pre-populated with the customer's original "
+            "query, the generated response, the retrieved chunk sources, and the intent "
+            "classification. Sensitive customer information such as email addresses or "
+            "account IDs is automatically redacted before the issue body is transmitted "
+            "to GitHub.\n\n"
+            "Status synchronization works via webhooks. When a linked GitHub issue is closed, "
+            "Nexora automatically records a status update on the corresponding support "
+            "response and can optionally trigger a follow-up notification to the customer "
+            "if a customer contact email is associated with the original query.\n\n"
+            "The integration supports GitHub Enterprise Server version 3.8 and later in "
+            "addition to github.com. To connect a GitHub Enterprise Server instance, "
+            "enter the custom base URL in the integration settings before initiating OAuth. "
+            "Ensure that Nexora's IP ranges (listed at nexora.io/ip-ranges) are whitelisted "
+            "in your GitHub Enterprise Server network firewall."
+        ),
+    },
+    {
+        "doc_id": "doc_009",
+        "title": "Understanding Faithfulness and Relevance Evaluation Scores",
+        "source_url": "https://help.nexora.io/features/evaluation-scores",
+        "metadata": {"category": "feature_request", "version": "2024-Q4"},
+        "content": (
+            "Nexora automatically computes two quality scores for every generated response: "
+            "a faithfulness score and a relevance score. Together, these scores form the "
+            "combined score, which is the primary metric for assessing overall response "
+            "quality. This article explains how each score is calculated, what values to "
+            "expect, and how to use them to improve your knowledge base.\n\n"
+            "The faithfulness score measures whether the generated response contains only "
+            "claims that are explicitly supported by the retrieved context chunks. Nexora "
+            "uses an LLM-as-judge approach: a secondary GPT-4o-mini call extracts every "
+            "factual claim from the response and verifies each one against the retrieved "
+            "documents. The faithfulness score is defined as supported_claims divided by "
+            "total_claims. A score of 1.0 means every claim in the response is directly "
+            "traceable to the retrieved context. A score below 0.8 indicates the model "
+            "may be hallucinating — generating facts not present in your documents.\n\n"
+            "Common causes of low faithfulness scores include: knowledge base gaps (the "
+            "topic is not covered in any indexed document), overly broad queries that do "
+            "not match any specific chunk with high confidence, and documents that contain "
+            "contradictory information causing the model to infer instead of quote. "
+            "Remediation strategies include adding more specific documentation, narrowing "
+            "chunk sizes, increasing top_k to include more context, or raising the "
+            "similarity threshold to filter out low-quality matches.\n\n"
+            "The relevance score measures how well the retrieved chunks address the "
+            "customer's query. Each chunk is independently rated on a 0 to 2 scale by "
+            "the evaluation judge: 0 for not relevant, 1 for partially relevant, and "
+            "2 for highly relevant. The relevance score is the sum of all chunk ratings "
+            "divided by the maximum possible score (2 × top_k). A relevance score above "
+            "0.75 indicates that retrieval is working well; scores below 0.5 suggest "
+            "the retrieval system is not finding the right documents for this type of "
+            "query, which may indicate a need to tune the alpha parameter or expand the "
+            "knowledge base.\n\n"
+            "The combined score is the arithmetic mean of faithfulness and relevance: "
+            "(faithfulness + relevance) / 2. This single number is used in the benchmark "
+            "report and in the response history table to quickly identify problematic "
+            "response patterns. Scores are stored in the responses table and can be "
+            "filtered and sorted in the analytics dashboard. You can trigger evaluation "
+            "for any existing response via the POST /api/v1/evaluate endpoint. Evaluation "
+            "results are written back to the responses table so they are available in "
+            "subsequent data exports."
+        ),
+    },
+    {
+        "doc_id": "doc_010",
+        "title": "Nexora Uptime SLA, Service Credits, and Incident Response",
+        "source_url": "https://help.nexora.io/billing/sla-and-credits",
+        "metadata": {"category": "billing", "version": "2024-Q4"},
+        "content": (
+            "Nexora's Service Level Agreement (SLA) defines uptime guarantees, the "
+            "calculation methodology for service credits, and the incident response "
+            "process. This article applies to Business and Enterprise plan customers. "
+            "Starter and Professional plans receive a best-effort uptime commitment "
+            "without contractual service credits.\n\n"
+            "Business plan customers are guaranteed 99.9 percent monthly uptime, which "
+            "equates to a maximum of 43.8 minutes of downtime per 30-day calendar month. "
+            "Enterprise plan customers are guaranteed 99.95 percent monthly uptime, "
+            "equating to a maximum of 21.9 minutes of downtime per 30-day calendar month. "
+            "Uptime is measured from Nexora's internal monitoring system, which performs "
+            "synthetic health checks every 60 seconds from three independent geographic "
+            "regions. An outage is defined as two consecutive failed health checks from at "
+            "least two of the three monitoring regions.\n\n"
+            "Service credits are issued when the measured monthly uptime falls below the "
+            "guaranteed threshold. The credit schedule is as follows: for uptime between "
+            "99.0 percent and 99.9 percent (Business) or 99.5 percent and 99.95 percent "
+            "(Enterprise), customers receive a 10 percent credit of the monthly recurring "
+            "fee. For uptime between 95.0 percent and 99.0 percent, the credit is 25 "
+            "percent. For uptime below 95.0 percent, the credit is 50 percent. Credits "
+            "are applied to the next invoice and cannot be redeemed for cash. The maximum "
+            "credit in any calendar month is 50 percent of the monthly fee.\n\n"
+            "To claim a service credit, submit a written request to billing@nexora.io "
+            "within 30 days of the end of the calendar month in which the outage occurred. "
+            "Include the affected workspace ID and a description of the impact. Nexora will "
+            "review the monitoring data and respond within 10 business days. Credits are "
+            "not issued automatically; customers must proactively submit a claim.\n\n"
+            "Scheduled maintenance windows are excluded from uptime calculations. Nexora "
+            "announces scheduled maintenance at least 72 hours in advance via the status "
+            "page at status.nexora.io and via email to workspace Admin accounts. Emergency "
+            "maintenance required to address a critical security vulnerability may be "
+            "performed with less than 72 hours notice; such windows are still excluded "
+            "from uptime calculations provided the maintenance period does not exceed "
+            "4 hours in any 30-day period.\n\n"
+            "During a P1 (critical) incident, Nexora's incident response team activates "
+            "within 15 minutes of detection. Status updates are posted to status.nexora.io "
+            "at minimum every 30 minutes until resolution. A post-incident report (PIR) "
+            "detailing root cause, impact, and corrective actions is published within 5 "
+            "business days of incident resolution for all P1 events and is available to "
+            "affected customers upon request."
+        ),
+    },
+    {
+        "doc_id": "doc_011",
+        "title": "Jira Integration: Bidirectional Ticket Synchronization",
+        "source_url": "https://help.nexora.io/integrations/jira",
+        "metadata": {"category": "integration", "version": "2024-Q4"},
+        "content": (
+            "The Nexora Jira integration synchronizes support responses with Jira issues, "
+            "enabling engineering and product teams to receive structured bug reports and "
+            "feature requests derived directly from customer queries. The integration "
+            "supports Jira Cloud and Jira Data Center version 8.20 and later.\n\n"
+            "To connect Jira, navigate to Settings > Integrations > Jira. For Jira Cloud, "
+            "click 'Connect with Atlassian' and complete the OAuth 2.0 authorization flow. "
+            "Nexora requests the following Jira scopes: read:jira-work (to list projects "
+            "and issue types), write:jira-work (to create and update issues), and "
+            "read:jira-user (to list users for assignee mapping). For Jira Data Center, "
+            "provide your instance base URL and generate a Jira API token under your "
+            "Jira user profile; enter the token in the Nexora integration settings "
+            "together with the associated email address.\n\n"
+            "After connecting, configure the project mapping: select the Jira project "
+            "where Nexora-generated issues will be created. Configure the issue type "
+            "mapping: Nexora's 'technical_issue' intent defaults to the Jira 'Bug' issue "
+            "type, 'feature_request' defaults to 'Story', and all other intents default "
+            "to 'Task'. These mappings can be overridden per workspace.\n\n"
+            "Field mapping allows Nexora to populate standard and custom Jira fields. "
+            "Standard fields populated automatically include Summary (the customer query "
+            "truncated to 255 characters), Description (the full response and context "
+            "chunks in Jira markup format), Labels (derived from the Nexora intent "
+            "category), and Priority (derived from the feedback rating if available). "
+            "Custom field mappings can be configured for any Jira custom field using the "
+            "Jira field ID.\n\n"
+            "Bidirectional synchronization keeps Nexora and Jira in alignment as issues "
+            "progress through workflow states. When a Jira issue transitions to a "
+            "configured 'resolved' status (e.g., 'Done', 'Closed', 'Resolved'), Nexora "
+            "marks the associated response as resolved and can trigger a follow-up message "
+            "to the customer. Conversely, if a Nexora response is manually marked as "
+            "escalated from the dashboard, a Jira issue is automatically created if one "
+            "does not already exist.\n\n"
+            "Webhook delivery to Jira is retried up to 5 times with exponential backoff "
+            "if the Jira instance is temporarily unavailable. Failed webhook deliveries "
+            "are logged to the Nexora integration event log, accessible under Settings > "
+            "Integrations > Jira > Event Log. Retried events that still fail after 5 "
+            "attempts are flagged for manual review."
+        ),
+    },
+    {
+        "doc_id": "doc_012",
+        "title": "Invoice Management, Payment Failures, and Dunning Process",
+        "source_url": "https://help.nexora.io/billing/invoices-and-payment",
+        "metadata": {"category": "billing", "version": "2024-Q4"},
+        "content": (
+            "This article describes how Nexora manages billing invoices, what happens "
+            "when a payment fails, and the dunning process that applies when accounts "
+            "fall into arrears. It also covers how to update payment methods, request "
+            "invoice adjustments, and download historical invoices for accounting purposes.\n\n"
+            "Invoices are generated automatically on the subscription renewal date and "
+            "are available for download from Settings > Billing > Invoices within 24 hours "
+            "of generation. Each invoice includes the subscription line items, any usage "
+            "overage charges, applicable taxes, service credits from the previous period, "
+            "and the total amount due. Invoices are denominated in USD by default; EUR "
+            "invoicing is available for EU-based customers upon request to billing@nexora.io.\n\n"
+            "To add or update a payment method, navigate to Settings > Billing > Payment "
+            "Methods. Credit card updates take effect for the next billing cycle. For ACH "
+            "or SEPA mandates, a micro-deposit verification step is required, which takes "
+            "1 to 2 business days. Only one payment method can be set as the primary at a "
+            "time; a secondary backup payment method can also be configured.\n\n"
+            "When a payment fails, Nexora sends an email notification to the billing email "
+            "address immediately. The payment is retried on days 3, 7, and 14 after the "
+            "initial failure. If the payment remains outstanding after the day 14 retry, "
+            "the account enters a restricted state: API calls to /query and /ingest are "
+            "blocked, but read-only access to the dashboard and data export functionality "
+            "remain active to allow the customer to retrieve their data. The account is "
+            "not deleted during the restricted period.\n\n"
+            "If the payment is not settled within 30 days of the original due date, the "
+            "subscription is cancelled and the account is suspended. Suspended accounts "
+            "retain data for 60 days, during which the account owner can reactivate by "
+            "settling the outstanding balance. After 60 days of suspension, all workspace "
+            "data is permanently deleted in accordance with the data retention policy.\n\n"
+            "To request an invoice adjustment (for example, if an incorrect tax rate was "
+            "applied or a promotional discount was not reflected), contact "
+            "billing@nexora.io within 60 days of invoice generation. Include the invoice "
+            "number and a description of the discrepancy. Adjustments are issued as credit "
+            "notes applied to future invoices; refunds to the original payment method are "
+            "not available for monthly plan subscribers. Annual plan refunds are evaluated "
+            "individually and require written approval from Nexora's finance team."
+        ),
+    },
+]

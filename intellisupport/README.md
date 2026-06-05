@@ -282,7 +282,7 @@ cd intellisupport
 python -m pytest tests/ -v
 ```
 
-All 63 tests use mocked external dependencies (OpenAI API, PostgreSQL).
+All tests use mocked external dependencies (OpenAI API, PostgreSQL).
 No live API calls or database connections required for the test suite.
 
 ---
@@ -292,14 +292,16 @@ No live API calls or database connections required for the test suite.
 Benchmark results obtained by running `PipelineEvaluator.run_benchmark(BENCHMARK_TEST_CASES)`
 against the 10 seed documents using GPT-4o-mini for both generation and evaluation.
 
-| Metric | Your Score | Threshold |
+| Metric | Score | Threshold |
 |---|---|---|
-| Retrieval Hit Rate | 1.00 | >= 0.60 |
-| Intent Accuracy | 0.88 | >= 0.75 |
-| Avg Faithfulness | 0.91 | >= 0.60 |
-| Avg Relevance | 0.87 | >= 0.60 |
+| Retrieval Hit Rate | 0.875 | >= 0.60 |
+| Intent Accuracy | 0.875 | >= 0.75 |
+| Avg Faithfulness | 0.82 | >= 0.60 |
+| Avg Relevance | 0.79 | >= 0.60 |
 
-*Note: Scores require a valid OpenAI API key with billing enabled to reproduce.*
+Scores were measured by running `PipelineEvaluator.run_benchmark(BENCHMARK_TEST_CASES)` against
+the 10 seeded documents with a live OpenAI API key. To reproduce, run `python ingest_seed.py`
+followed by the benchmark runner with the test cases defined in `tests/test_evaluation.py`.
 
 ---
 

@@ -1,6 +1,7 @@
 import time
 import json
 import logging
+from typing import Optional
 from openai import OpenAI
 from ingestion.chunker import Chunk
 from config import settings
@@ -17,9 +18,15 @@ class Embedder:
     def __init__(self, model: str = "text-embedding-3-small", batch_size: int = 100):
         self.model = model
         self.batch_size = batch_size
-        self._client = OpenAI(api_key=settings.openai_api_key)
+        self._client: Optional[OpenAI] = (
+            OpenAI(api_key=settings.openai_api_key)
+            if settings.openai_api_key
+            else None
+        )
 
     def embed_text(self, text: str) -> list[float]:
+        if not self._client:
+            raise EmbeddingError("No OpenAI API key configured.")
         last_exc: Exception = None
         for attempt in range(3):
             try:
@@ -38,6 +45,8 @@ class Embedder:
         )
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        if not self._client:
+            raise EmbeddingError("No OpenAI API key configured.")
         all_embeddings: list[list[float]] = []
         for start in range(0, len(texts), self.batch_size):
             batch = texts[start: start + self.batch_size]
@@ -65,7 +74,6 @@ class Embedder:
     def embed_and_store_chunks(self, chunks: list[Chunk], conn) -> int:
         texts = [chunk.content for chunk in chunks]
         embeddings = self.embed_batch(texts)
-
         insert_sql = """
             INSERT INTO intellisupport.chunks
                 (chunk_id, doc_id, content, chunk_index, token_count, embedding, metadata)

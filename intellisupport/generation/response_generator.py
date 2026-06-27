@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 from pydantic import BaseModel
 from openai import OpenAI
 from config import settings
@@ -25,9 +26,21 @@ class ResponseGenerator:
         self._model = model
         self._max_tokens = max_tokens
         self._temperature = temperature
-        self._client = OpenAI(api_key=settings.openai_api_key)
+        self._client: Optional[OpenAI] = (
+            OpenAI(api_key=settings.openai_api_key)
+            if settings.openai_api_key
+            else None
+        )
 
     def generate(self, messages: list[dict]) -> GeneratedResponse:
+        if not self._client:
+            return GeneratedResponse(
+                response_text="I don't have information about that in the current documentation.",
+                model=self._model,
+                prompt_tokens=0,
+                completion_tokens=0,
+                total_tokens=0,
+            )
         api_resp = self._client.chat.completions.create(
             model=self._model,
             messages=messages,
@@ -50,11 +63,9 @@ class ResponseGenerator:
         primary = self.generate(messages)
         is_too_short = len(primary.response_text.strip()) < 20
         is_refusal = "i don't know" in primary.response_text.lower()
-
         if is_too_short or is_refusal:
             logger.info("Primary response insufficient. Attempting fallback.")
             fallback = self.generate(fallback_messages)
             if len(fallback.response_text) > len(primary.response_text):
                 return fallback
-
         return primary

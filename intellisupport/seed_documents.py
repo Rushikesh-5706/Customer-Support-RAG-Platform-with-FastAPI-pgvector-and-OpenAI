@@ -301,7 +301,7 @@ SEED_DOCUMENTS = [
             "prompted. Up to 5 hardware keys can be registered per account, which is useful for "
             "maintaining backup keys stored in secure locations.\n\n"
             "Workspace-Level 2FA Enforcement: Workspace Admins can require all members to use 2FA "
-            "by navigating to Settings > Security > Authentication and enabling 'Require Two-Factor '
+            "by navigating to Settings > Security > Authentication and enabling 'Require Two-Factor "
             "Authentication'. Once enforced, members without 2FA enrolled receive a grace period "
             "(configurable: 24 hours to 7 days) to enroll before they are locked out. Admins can "
             "generate one-time bypass codes for individual members from the Team management panel "

@@ -27,7 +27,7 @@ Customer Query  ──►  POST /query
                           │
                           ▼
               ┌─────────────────────┐
-              │  IntentClassifier   │  ◄── GPT-4o-mini (JSON mode, T=0)
+              │  IntentClassifier   │  ◄── GPT-4o-mini (T=0) + keyword heuristic fallback
               │  7 intent labels    │
               └────────┬────────────┘
                        │ IntentResult
@@ -75,11 +75,11 @@ Customer Query  ──►  POST /query
               └─────────────┬───────────────────┘
                             │ POST /evaluate/{response_id}
                             ▼
-              ┌────────────────────────────────────┐
-              │  PipelineEvaluator                 │
-              │  FaithfulnessEvaluator (LLM judge) │
-              │  RelevanceEvaluator  (LLM judge)   │
-              └────────────────────────────────────┘
+              ┌──────────────────────────────────────────────────────────┐
+              │  PipelineEvaluator                                       │
+              │  FaithfulnessEvaluator (LLM judge + token-overlap fallback) │
+              │  RelevanceEvaluator  (LLM judge + lexical fallback)      │
+              └──────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -314,11 +314,14 @@ keyword precision. The hybrid score `α·vec + (1-α)·bm25` with `α=0.7` was c
 Nexora knowledge base is mostly narrative prose — semantics dominate. A Jaccard reranking boost
 of `0.2·jaccard` is applied last to push keyword-overlapping chunks to rank 1 for exact queries.
 
-### 2. LLM-as-Judge at Zero Temperature
+### 2. LLM-as-Judge at Zero Temperature with Offline Fallback
 Both `FaithfulnessEvaluator` and `RelevanceEvaluator` use `temperature=0.0` to make evaluation
-deterministic. The faithfulness prompt explicitly defines "supported" vs "unsupported" with
-examples to prevent prompt sensitivity from inflating scores. JSON mode (`response_format`) is
-enforced to eliminate parsing failures.
+deterministic. The faithfulness prompt excludes source-citation lines and meta-phrases from claim
+counting to prevent over-penalisation. JSON mode (`response_format`) is enforced to eliminate
+parsing failures. When no OpenAI API key is present, `FaithfulnessEvaluator` falls back to
+token-overlap scoring (≥28% word overlap = supported) and `RelevanceEvaluator` falls back to
+lexical Jaccard overlap (≥28% = score 2, ≥10% = score 1, otherwise 0), ensuring the pipeline
+produces meaningful scores even without live API access.
 
 ### 3. Sentence-Boundary Chunking with Sliding Window Overlap
 Instead of hard character splits, `DocumentChunker` splits on sentence boundaries (`[.?!]`) and
@@ -327,11 +330,14 @@ the last `chunk_overlap` tokens of the previous chunk seed the next. This preven
 context (e.g., a procedure step) from being cut mid-sentence, which would reduce faithfulness
 scores by depriving the LLM of complete facts.
 
-### 4. Exponential Backoff on All External Calls
-`Embedder.embed_text` retries up to 3 times with delays of 1s, 2s, 4s using `time.sleep`.
-`IntentClassifier.classify` and all evaluator calls fall back gracefully on exception rather
-than crashing the request. This makes the system resilient to transient OpenAI rate limits
-and network blips without requiring a retry library.
+### 4. Exponential Backoff and Offline-Safe Fallbacks
+`Embedder.embed_text` retries up to 3 times with exponential backoff delays of 1s, 2s, 4s.
+All components that call OpenAI (`Embedder`, `ResponseGenerator`, `IntentClassifier`,
+`FaithfulnessEvaluator`, `RelevanceEvaluator`) use `Optional[OpenAI]` — when `OPENAI_API_KEY`
+is absent or empty the client is `None` and each component activates its local fallback
+immediately without raising an exception on import or startup. `IntentClassifier` uses a
+keyword-heuristic fallback covering all 7 intent labels with boosted patterns for known edge
+cases. This makes the system safe to import, test, and inspect in any environment.
 
 ### 5. No ORM — Raw SQL with psycopg2
 All database interactions use parameterized raw SQL. This eliminates the N+1 query problem
@@ -346,7 +352,7 @@ All settings are loaded from `.env` via `config.py`.
 
 | Variable | Default | Description |
 |---|---|---|
-| `OPENAI_API_KEY` | *(required)* | OpenAI API key |
+| `OPENAI_API_KEY` | `""` *(optional)* | OpenAI API key. If absent, all LLM components use local fallbacks automatically. Set for full pipeline functionality. |
 | `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/intellisupport` | PostgreSQL connection string |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
 | `GENERATION_MODEL` | `gpt-4o-mini` | OpenAI chat model |

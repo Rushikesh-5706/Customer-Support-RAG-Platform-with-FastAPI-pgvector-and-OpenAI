@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Optional
 from pydantic import BaseModel
 from openai import OpenAI
 from config import settings
@@ -55,24 +56,24 @@ _HEURISTIC_KEYWORDS: dict[str, list[str]] = {
     "technical_issue": [
         "error", "crash", "crashing", "bug", "broken", "issue", "fails",
         "failing", "not receiving", "not working", "problem", "troubleshoot",
-        "err_", "500", "502", "timeout",
+        "err_", "500", "502", "timeout", "outage",
     ],
     "feature_request": [
-        "feature", "roadmap", "request", "custom", "can i use",
-        "would like", "add support", "template", "templates",
+        "feature", "roadmap", "request", "can i use", "template", "templates",
+        "custom", "workflow", "automat",
     ],
     "integration": [
         "integration", "integrate", "slack", "github", "jira",
-        "connect to", "webhook", "connect nexora",
+        "connect to", "webhook", "webhooks", "connect nexora", "third-party",
     ],
     "account_management": [
         "login", "log in", "password", "two-factor", "2fa", "mfa",
         "team member", "add a new member", "new member", "add member",
         "invite", "permission", "permissions", "account", "authentication",
-        "authenticate", "sign in", "sign-in", "forgot", "reset",
+        "authenticate", "sign in", "sign-in", "forgot", "reset", "member to my team",
     ],
     "data_and_export": [
-        "export", "backup", "csv", "data", "download", "restore", "gdpr",
+        "export", "backup", "csv", "data export", "download", "restore", "gdpr",
     ],
 }
 
@@ -86,24 +87,32 @@ class IntentClassifier:
 
     def __init__(self, model: str = "gpt-4o-mini"):
         self._model = model
-        self._client = OpenAI(api_key=settings.openai_api_key)
+        self._client: Optional[OpenAI] = (
+            OpenAI(api_key=settings.openai_api_key)
+            if settings.openai_api_key
+            else None
+        )
 
     def _heuristic_classify(self, query: str) -> IntentResult:
         text = query.lower()
-        scores: dict[str, int] = {intent: 0 for intent in VALID_INTENTS if intent != "general_inquiry"}
-
+        scores: dict[str, int] = {
+            intent: 0 for intent in VALID_INTENTS if intent != "general_inquiry"
+        }
         for intent, keywords in _HEURISTIC_KEYWORDS.items():
             for kw in keywords:
                 if kw in text:
                     scores[intent] += 1
 
-        # Boosted patterns for known edge cases
         if "webhook" in text and ("not receiving" in text or "isn't" in text or "is not" in text):
             scores["technical_issue"] += 3
         if "forgot" in text and ("password" in text or "log in" in text or "login" in text):
             scores["account_management"] += 4
-        if "add" in text and ("member" in text or "team" in text):
+        if ("add" in text or "new" in text) and ("member" in text or "team" in text):
             scores["account_management"] += 3
+        if "cancel" in text and "subscription" in text:
+            scores["billing"] += 3
+        if "export" in text and ("csv" in text or "data" in text):
+            scores["data_and_export"] += 3
 
         if all(v == 0 for v in scores.values()):
             return IntentResult(intent="general_inquiry", confidence=0.5)
@@ -133,6 +142,8 @@ class IntentClassifier:
         ]
 
     def classify(self, query: str) -> IntentResult:
+        if not self._client:
+            return self._heuristic_classify(query)
         try:
             resp = self._client.chat.completions.create(
                 model=self._model,
@@ -144,11 +155,9 @@ class IntentClassifier:
             parsed = json.loads(resp.choices[0].message.content)
             intent = parsed.get("intent", "general_inquiry")
             confidence = float(parsed.get("confidence", 0.0))
-
             if intent not in VALID_INTENTS:
                 logger.warning("Unknown intent '%s'. Using heuristic fallback.", intent)
                 return self._heuristic_classify(query)
-
             return IntentResult(
                 intent=intent,
                 confidence=round(max(0.0, min(1.0, confidence)), 3),

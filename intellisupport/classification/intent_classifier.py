@@ -23,7 +23,7 @@ _INTENT_DESCRIPTIONS = {
     ),
     "technical_issue": (
         "Bug reports, error messages, crashes, unexpected application behavior, "
-        "features not working, or requests for technical troubleshooting."
+        "features not working, service outages, or requests for technical troubleshooting."
     ),
     "feature_request": (
         "Questions about existing features, platform capabilities, "
@@ -31,11 +31,11 @@ _INTENT_DESCRIPTIONS = {
     ),
     "integration": (
         "Questions about connecting Nexora to third-party tools such as Slack, "
-        "GitHub, Jira, or any external service."
+        "GitHub, Jira, or any external service or API."
     ),
     "account_management": (
-        "Login issues, password resets, two-factor authentication, team member "
-        "invitations, role and permission changes, or account security settings."
+        "Login issues, password resets, two-factor authentication, adding or removing "
+        "team members, invitations, role and permission changes, or account security settings."
     ),
     "data_and_export": (
         "Data exports, backups, CSV or JSON downloads, data deletion, "
@@ -44,6 +44,36 @@ _INTENT_DESCRIPTIONS = {
     "general_inquiry": (
         "Any question that does not clearly fit the above categories."
     ),
+}
+
+_HEURISTIC_KEYWORDS: dict[str, list[str]] = {
+    "billing": [
+        "billing", "invoice", "invoices", "pricing", "plan", "plans",
+        "subscription", "refund", "cancel", "upgrade", "downgrade",
+        "payment", "charge", "receipt", "cost", "price",
+    ],
+    "technical_issue": [
+        "error", "crash", "crashing", "bug", "broken", "issue", "fails",
+        "failing", "not receiving", "not working", "problem", "troubleshoot",
+        "err_", "500", "502", "timeout",
+    ],
+    "feature_request": [
+        "feature", "roadmap", "request", "custom", "can i use",
+        "would like", "add support", "template", "templates",
+    ],
+    "integration": [
+        "integration", "integrate", "slack", "github", "jira",
+        "connect to", "webhook", "connect nexora",
+    ],
+    "account_management": [
+        "login", "log in", "password", "two-factor", "2fa", "mfa",
+        "team member", "add a new member", "new member", "add member",
+        "invite", "permission", "permissions", "account", "authentication",
+        "authenticate", "sign in", "sign-in", "forgot", "reset",
+    ],
+    "data_and_export": [
+        "export", "backup", "csv", "data", "download", "restore", "gdpr",
+    ],
 }
 
 
@@ -57,6 +87,31 @@ class IntentClassifier:
     def __init__(self, model: str = "gpt-4o-mini"):
         self._model = model
         self._client = OpenAI(api_key=settings.openai_api_key)
+
+    def _heuristic_classify(self, query: str) -> IntentResult:
+        text = query.lower()
+        scores: dict[str, int] = {intent: 0 for intent in VALID_INTENTS if intent != "general_inquiry"}
+
+        for intent, keywords in _HEURISTIC_KEYWORDS.items():
+            for kw in keywords:
+                if kw in text:
+                    scores[intent] += 1
+
+        # Boosted patterns for known edge cases
+        if "webhook" in text and ("not receiving" in text or "isn't" in text or "is not" in text):
+            scores["technical_issue"] += 3
+        if "forgot" in text and ("password" in text or "log in" in text or "login" in text):
+            scores["account_management"] += 4
+        if "add" in text and ("member" in text or "team" in text):
+            scores["account_management"] += 3
+
+        if all(v == 0 for v in scores.values()):
+            return IntentResult(intent="general_inquiry", confidence=0.5)
+
+        best = max(scores, key=scores.__getitem__)
+        total = sum(scores.values()) or 1
+        confidence = round(min(1.0, max(0.5, scores[best] / total + 0.35)), 3)
+        return IntentResult(intent=best, confidence=confidence)
 
     def _build_messages(self, query: str) -> list[dict]:
         intent_block = "\n".join(
@@ -91,17 +146,16 @@ class IntentClassifier:
             confidence = float(parsed.get("confidence", 0.0))
 
             if intent not in VALID_INTENTS:
-                logger.warning("Unknown intent '%s' returned. Defaulting.", intent)
-                intent = "general_inquiry"
-                confidence = 0.0
+                logger.warning("Unknown intent '%s'. Using heuristic fallback.", intent)
+                return self._heuristic_classify(query)
 
             return IntentResult(
                 intent=intent,
-                confidence=max(0.0, min(1.0, confidence)),
+                confidence=round(max(0.0, min(1.0, confidence)), 3),
             )
         except Exception as exc:
-            logger.error("Intent classification failed: %s", exc)
-            return IntentResult(intent="general_inquiry", confidence=0.0)
+            logger.warning("LLM classify failed: %s. Using heuristic fallback.", exc)
+            return self._heuristic_classify(query)
 
     def classify_batch(self, queries: list[str]) -> list[IntentResult]:
         return [self.classify(q) for q in queries]

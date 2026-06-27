@@ -1,0 +1,14 @@
+{
+  "include": [
+    "intellisupport"
+  ],
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Darwin",
+  "executionEnvironments": [
+    {
+      "root": "intellisupport",
+      "pythonVersion": "3.12"
+    }
+  ],
+  "reportMissingModuleSource": "none"
+}
